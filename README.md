@@ -23,6 +23,7 @@ Object  | jobject  | typedef void*
 Class   | jclass   | --
 
 数组：  
+
 Java类型  | Jni.h
 --------- | -----
 boolean[] | jbooleanArray
@@ -83,6 +84,7 @@ Java_com_sty_ne_jnilogin_md5_encrypt_MainActivity_printStr(
         jstring);
 ```  
 JNI内部描述与Java对照表：  
+
 java类型 | JNI描述    
 ------  | -------- 
 boolean | Z
