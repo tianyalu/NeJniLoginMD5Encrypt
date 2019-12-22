@@ -1,11 +1,11 @@
 # NeJniLoginMD5Encrypt JNI语法规范以及登录在JNI层用MD5加密
 ## 一、JNI语法规范 
-### 1.1 JNI数据类型
+**JNI数据类型**  
 * JNI系统类型：JNIEnv(线程上下文)  
 * 基本数据类型  
 * 引用类型   
 * 数组  
-### 1.2 数据类型映射关系
+### 1.1 数据类型映射关系
 基本数据类型： 
 
 java类型 | Jni.h    | 在C中的定义
@@ -38,7 +38,7 @@ String[]  | jstringArray
 Object[]  | jobjectArray
 Class[]   | jclassArray
 
-### 1.3 JNI中使用jstring
+### 1.2 JNI中使用jstring
 `jstring->char[]`:  
 ```c++
 const char* charStr = (*env)->GetStringUTFChars(env, str, NULL);
@@ -56,7 +56,7 @@ return str;
 const char* unicodeCharStr = (*env)->GetStringChars(env, str, NULL):
 ```  
 
-### 1.4 JNI中使用jobject
+### 1.3 JNI中使用jobject
 * 对象的创建  
 * 字段的读写  
     - 静态字段  
@@ -65,7 +65,7 @@ const char* unicodeCharStr = (*env)->GetStringChars(env, str, NULL):
     - 静态方法  
     - 实例方法  
 
-#### 1.4.1 JNI内部描述
+#### 1.3.1 JNI内部描述
 Java方法：  
 ```java
 public native void printStr(String str);
@@ -102,7 +102,7 @@ method  | (参数类型)返回值
 JNI描述实例：  
 ![image](https://github.com/tianyalu/NeJniLoginMD5Encrypt/blob/master/show/jni_description_instance.png)  
 
-#### 1.4.2 在JNI中对字段进行读写的步骤
+#### 1.3.2 在JNI中对字段进行读写的步骤
 ![image](https://github.com/tianyalu/NeJniLoginMD5Encrypt/blob/master/show/invoke_field_process.png)  
 例子：    
 ```c++
@@ -115,7 +115,7 @@ jfieldID whatField = (*env)->GetFieldID(env, cls, "what", "I");
 int iWhat = (*env)->GetIntField(env, msg, whatField);
 ```
 
-#### 1.4.3 在JNI中对调用方法的步骤
+#### 1.3.3 在JNI中对调用方法的步骤
 ![image](https://github.com/tianyalu/NeJniLoginMD5Encrypt/blob/master/show/invoke_method_process.png)  
 例子：  
 ```c++
@@ -125,7 +125,7 @@ jmethodID obtainMethod = (*env)->GetStaticMethodID(env, cls, "obtain", "()Landro
 return (*env)->CallStaticObjectMethod(env, cls, obtainMethod);
 ```
 
-#### 1.4.4 在JNI中创建对象的步骤  
+#### 1.3.4 在JNI中创建对象的步骤  
 ![image](https://github.com/tianyalu/NeJniLoginMD5Encrypt/blob/master/show/create_object_process.png)  
 例子：  
 ```c++
@@ -135,7 +135,7 @@ jmethodID constructMethod = (*env)->GetMethodID(env, cls, "<init>", "()V");
 return (*env)->NewObject(env, cls, constructMethod);
 ```
 
-#### 1.4.5 在JNI中对数组操作的步骤 
+#### 1.3.5 在JNI中对数组操作的步骤 
 ```java
 Message[] messages;
 for(int index = 0; i < messages.length; index++) {
@@ -150,6 +150,96 @@ for(; index < length; index++) {
     (*env)->SetIntField(env, element, whatField, -2);
 }
 ```
+
+### 1.4 `JNI Reference`
+Jni.h         | 在C中的定义
+------------- | ----------
+jobject       | typedef void*
+jclass        | typedef jobject
+jstring       | typedef jobject
+jarray        | typedef jobject
+jobjectArray  | typedef jarray
+jbooleanArray | typedef jarray
+
+各种引用的区别：  
+
+JNI Reference           | 特点
+----------------------- | -----------------------
+局部引用(LocalRef)       | 本地方法栈内有效
+全局引用(GlobalRef)      | 虚拟机全局生效，不会被GC回收
+弱全局引用(WeakGlobalRef) | 虚拟机全局生效，GC时被回收
+
+**注意：**  
+如果没有对jobject对象做全局引用或弱全局引用的转换，则默认为局部引用！！  
+
+#### 1.4.1 局部引用
+如果循环次数过多，可能报“局部引用表溢出”的异常，从而导致崩溃。需要及时释放不用的局部引用。  
+![image](https://github.com/tianyalu/NeJniLoginMD5Encrypt/blob/master/show/local_reference_exception.png)  
+删除一个局部变量的引用方法如下：  
+```c++
+(*env)->DeleteLocalRef(env, element);
+```
+删除多个局部变量的引用方法如下： 
+```c++
+(*env)->PushLocalRef(env, 3); # 预测的帧数（可以不等于实际帧数）
+//中间要删除的局部引用帧
+(*env)->PopLocalRef(env, 3);
+```
+![image](https://github.com/tianyalu/NeJniLoginMD5Encrypt/blob/master/show/clear_multi_reference.png)  
+可以通过如下方法来判断是否还有足够可用的引用帧：  
+```c++
+if((*env)->EnsureLocalCapacity(env, 3) < 0) {
+    //TODO 异常处理
+}
+```
+#### 1.4.2 全局引用
+![image](https://github.com/tianyalu/NeJniLoginMD5Encrypt/blob/master/show/global_reference.png)  
+声明为全局引用需要调用如下方法：  
+```c++
+jclass globalCls;
+jclass cls = (*env)->GetObjectClass(env, msg);
+globalCls = (*env)->NewGlobalRef(env, cls);
+```
+删除全局引用需要调用如下方法：  
+```c++
+(*env)->DeleteGlobalRef(env, globalCls);
+```
+
+**例外：**  
+jmethodID 和 jfieldID 不是 jobject，采用如下方式声明为全局引用：  
+```c++
+jfieldID whatField;
+jmethodID obtainMethod;
+
+if(whatField == NULL) {
+    whatField = (*env)->GetFieldID(env, cls, "what", "I");
+}
+if(obtainMethod == NULL) {
+    obtainMethod = (*env)->GetStaticMethodID(env, cls, "obtain", "()Landroid/os/Message;");
+}
+```
+
+#### 1.4.2 弱全局引用
+创建和删除方式如下：  
+```c++
+//创建
+jclass globalWeakCls = (*env)->NewWeakGlobalRef(env, cls);
+//删除
+(*env)->DeleteWeakGlobalRef(env, globalWeakCls);
+```
+
+### 1.4.3 懒加载与预加载(JNI_ONLoad, JNI_ONUnLoad)
+懒加载：  
+![image](https://github.com/tianyalu/NeJniLoginMD5Encrypt/blob/master/show/pre_lazy_init.png)  
+预加载与卸载（so加载卸载的时候调用）：  
+![image](https://github.com/tianyalu/NeJniLoginMD5Encrypt/blob/master/show/pre_init.png)  
+
+### 1.4.4 关联JNI方法与native方法
+native方法命名必须遵循一定的规则才能被解析，`registerNative`则可以将两者关联起来而不必遵循命名规则。  
+该方法除了在`JNI_ONLoad`方法中调用外，还可以在任意地方调用，动态关联。  
+![image](https://github.com/tianyalu/NeJniLoginMD5Encrypt/blob/master/show/register_native.png)  
+
+
 
 ## 二、实操
 **注意：**  
