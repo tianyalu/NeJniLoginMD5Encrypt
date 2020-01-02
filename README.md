@@ -1,5 +1,6 @@
 # NeJniLoginMD5Encrypt JNI语法规范以及登录在JNI层用MD5加密
-## 一、JNI语法规范 
+## 一、JNI语法基础规范
+可以参考：[JNI基础](https://www.jianshu.com/p/e3bcff7e3b24)
 **JNI数据类型**  
 * JNI系统类型：JNIEnv(线程上下文)  
 * 基本数据类型  

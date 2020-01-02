@@ -1,5 +1,16 @@
 #include <jni.h>
 #include <string>
+#include <android/log.h>
+#include <android/asset_manager.h>
+
+//extern "C" {
+
+//}
+
+//jint JNI_OnLoad(JavaVM* jvm, void* reserved) {
+//    JNIEnv* env = NULL;
+//    if((*jvm)->GetEnv
+//}
 
 extern "C" JNIEXPORT jstring JNICALL
 Java_com_sty_ne_jnilogin_md5_encrypt_MainActivity_stringFromJNI(
