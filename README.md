@@ -1,6 +1,6 @@
 # NeJniLoginMD5Encrypt JNI语法规范以及登录在JNI层用MD5加密
 ## 一、JNI语法基础规范
-可以参考：[JNI基础](https://www.jianshu.com/p/e3bcff7e3b24)
+可以参考：[JNI基础](https://www.jianshu.com/p/e3bcff7e3b24)  
 **JNI数据类型**  
 * JNI系统类型：JNIEnv(线程上下文)  
 * 基本数据类型  
@@ -244,11 +244,32 @@ native方法命名必须遵循一定的规则才能被解析，`registerNative`�
 
 ## 二、实操
 **注意：**  
-上面讲的规范内容比较陈旧，仅可做思路上的参考，实操部分会有一些写法上的改变。  
-### 2.1 `native-lib.cpp`文件
+上面讲的规范内容比较陈旧，仅可做思路上的参考，实操部分会有一些写法上的改变。 
+
+### 2.1 日志打印宏定义头文件`AndroidLog.h`
+```c++
+#ifndef NEJNILOGINMD5ENCRYPT_ANDROIDLOG_H
+#define NEJNILOGINMD5ENCRYPT_ANDROIDLOG_H
+
+#include <android/log.h>
+
+#define TAG "STY"
+//#define LOGE2(...) __android_log_print(ANDROID_LOG_ERROR, TAG, ##__VA_ARGS__) //error: format string is not a string literal (potentially insecure)
+#define LOGE(FORMAT,...) __android_log_print(ANDROID_LOG_ERROR, TAG, FORMAT, ##__VA_ARGS__)
+#define LOGV(FORMAT,...) __android_log_print(ANDROID_LOG_VERBOSE, TAG, FORMAT, ##__VA_ARGS__)
+#define LOGI(FORMAT,...) __android_log_print(ANDROID_LOG_INFO, TAG, FORMAT, ##__VA_ARGS__)
+#define LOGW(FORMAT,...) __android_log_print(ANDROID_LOG_WARN, TAG, FORMAT, ##__VA_ARGS__)
+#define LOGD(FORMAT,...) __android_log_print(ANDROID_LOG_DEBUG, TAG, FORMAT, ##__VA_ARGS__)
+
+#endif //NEJNILOGINMD5ENCRYPT_ANDROIDLOG_H
+``` 
+
+### 2.2 `native-lib.cpp`文件
 ```c++
 #include <jni.h>
 #include <string>
+#include <android/asset_manager.h>
+#include "AndroidLog.h"
 
 /**
  * Class:  com_sty_ne_jnilogin_md5_encrypt_UserInfo
@@ -264,13 +285,18 @@ Java_com_sty_ne_jnilogin_md5_encrypt_UserInfo_nativeEncrypt(JNIEnv *env, jobject
 
     jclass clsMd5 = env->FindClass("com/sty/ne/jnilogin/md5/encrypt/MD5Helper");
     jmethodID md5Method = env->GetStaticMethodID(clsMd5, "getMD5", "(Ljava/lang/String;)Ljava/lang/String;");
-    jstring strNewPwd = static_cast<jstring>(env->CallStaticObjectMethod(clsMd5, md5Method,
-                                                                         strPwd));
+    jstring strNewPwd = static_cast<jstring>(env->CallStaticObjectMethod(clsMd5, md5Method, strPwd));
+
+    //日志打印测试
+    const char *buff = env->GetStringUTFChars(strNewPwd, 0);
+    LOGE("加密后的密码是：%s", buff);
+    env->ReleaseStringUTFChars(strNewPwd, buff);
+
     env->SetObjectField(instance, pwdField, strNewPwd);
 }
 ```
 
-### 2.2 `LoginActivity.java`文件
+### 2.3 `LoginActivity.java`文件
 ```java
 public class LoginActivity extends AppCompatActivity {
     private EditText edtUser;
